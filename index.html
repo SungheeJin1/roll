@@ -105,19 +105,47 @@ function drawTail(g, t, side) {
   g.restore();
 }
 function drawBand(g, fx, back) {
+  /* 헤어롤: 앞머리가 분홍 헤어롤에 돌돌 말려 있고, 양옆으로 분홍 롤 끝이 살짝 보인다 */
   g.save(); g.translate(back ? 0 : fx * 30, back ? -306 : -300);
-  const gr = g.createLinearGradient(0, -30, 0, 30);
-  gr.addColorStop(0, '#fcdc96'); gr.addColorStop(.6, '#efb45a'); gr.addColorStop(1, '#d99539');
-  rr(g, -66, -29, 132, 58, 27); g.fillStyle = gr; g.fill();
-  g.strokeStyle = 'rgba(150,85,25,.35)'; g.lineWidth = 3; g.stroke();
-  // 보송한 결
-  g.strokeStyle = 'rgba(255,240,200,.55)'; g.lineWidth = 3; g.beginPath();
-  for (let i = -50; i <= 50; i += 14) { g.moveTo(i, -20); g.lineTo(i + 4, -10); }
-  g.stroke();
+  g.lineCap = 'round';
+  // 이마에서 롤로 올라가는 앞머리 결
   if (!back) {
-    rr(g, 38, -27, 26, 50, 9); g.fillStyle = '#f5d3cc'; g.fill();
-    g.strokeStyle = 'rgba(180,120,110,.4)'; g.lineWidth = 2; g.stroke();
+    const bg = g.createLinearGradient(0, -10, 0, 48);
+    bg.addColorStop(0, '#e9a94e'); bg.addColorStop(1, 'rgba(216,150,58,0)');
+    g.fillStyle = bg; g.beginPath(); g.moveTo(-50, 14); g.quadraticCurveTo(0, 6, 50, 14);
+    g.quadraticCurveTo(30, 52, 0, 50); g.quadraticCurveTo(-30, 52, -50, 14); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(160,92,30,.45)'; g.lineWidth = 3; g.beginPath();
+    for (let i = -36; i <= 36; i += 12) { g.moveTo(i * .8, 46); g.quadraticCurveTo(i * .95, 30, i, 18); }
+    g.stroke();
   }
+  // 분홍 헤어롤 양 끝
+  const end = (side) => {
+    const x0 = side * 60;
+    const pg = g.createLinearGradient(0, -26, 0, 26);
+    pg.addColorStop(0, '#ffc6d6'); pg.addColorStop(.5, '#f497b3'); pg.addColorStop(1, '#d9708f');
+    rr(g, side > 0 ? x0 - 4 : x0 - 20, -25, 24, 50, 9); g.fillStyle = pg; g.fill();
+    g.strokeStyle = 'rgba(170,70,100,.45)'; g.lineWidth = 2; g.beginPath();
+    for (let yy = -16; yy <= 16; yy += 10) { g.moveTo(x0 - 3, yy); g.lineTo(x0 + 3, yy); }
+    g.stroke();
+    ell(g, x0 + side * 18, 0, 7, 24); g.fillStyle = '#f7a9c0'; g.fill();
+    ell(g, x0 + side * 18, 0, 3.5, 13); g.fillStyle = '#c45d7d'; g.fill();
+  };
+  end(-1); end(1);
+  // 롤에 말린 앞머리 (털)
+  const fg = g.createLinearGradient(0, -30, 0, 30);
+  fg.addColorStop(0, '#fcd894'); fg.addColorStop(.55, '#eba951'); fg.addColorStop(1, '#c98432');
+  rr(g, -62, -29, 124, 58, 27); g.fillStyle = fg; g.fill();
+  g.strokeStyle = 'rgba(150,85,25,.35)'; g.lineWidth = 3; g.stroke();
+  // 감긴 결 (사선 곡선)
+  g.strokeStyle = 'rgba(140,78,22,.38)'; g.lineWidth = 3; g.beginPath();
+  for (let i = -48; i <= 48; i += 13) { g.moveTo(i - 6, -24); g.quadraticCurveTo(i + 8, 0, i - 4, 24); }
+  g.stroke();
+  g.strokeStyle = 'rgba(255,238,200,.6)'; g.lineWidth = 3; g.beginPath();
+  for (let i = -44; i <= 44; i += 13) { g.moveTo(i - 3, -20); g.quadraticCurveTo(i + 4, -12, i + 2, -4); }
+  g.stroke();
+  // 털끝이 보송하게
+  g.fillStyle = '#eba951';
+  for (let i = -54; i <= 54; i += 12) { ell(g, i, -27, 6, 4); g.fill(); }
   g.restore();
 }
 function drawEye(g, x, y, side, expr, t) {
