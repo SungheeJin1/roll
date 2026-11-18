@@ -1097,7 +1097,7 @@ function drawHUD() {
   t2.setTransform(1, 0, 0, 1, 0, 0); t2.clearRect(0, 0, txC.width, txC.height); t2.setTransform(1 / TX_S, 0, 0, 1 / TX_S, 0, 0);
   // 좌상단: 이름 + 체력바
   u.fillStyle = '#5cc1d0'; ell(u, 70, 52, 13, 12); u.fill(); u.fillStyle = '#f3c64e'; ell(u, 72, 58, 7, 6); u.fill(); u.fillStyle = '#e9f7f9'; ell(u, 66, 46, 4, 4); u.fill();
-  ptext('작은손', 94, 52, 27, '#f6f3f8', 'left', 900, 'rgba(20,20,40,.55)');
+  ptext('롤숭이', 94, 52, 27, '#f6f3f8', 'left', 900, 'rgba(20,20,40,.55)');
   pill(u, 54, 80, 266, 38, '#2c2b3e', '#efe6f2', 7, 'rgba(190,180,210,.55)');
   const hw = 196 * clamp(G.hp / 100, 0, 1);
   u.fillStyle = '#6b6a78'; u.fillRect(92, 89, 202, 20);
@@ -1140,7 +1140,7 @@ function drawHUD() {
   ctx.imageSmoothingEnabled = true;
 }
 function drawMinimap() {
-  const mx = 1045, my = 140, mr = 78;
+  const mx = 915, my = 122, mr = 78;
   u.save(); ell(u, mx, my, mr, mr); u.fillStyle = '#9fd0e3'; u.fill(); u.clip();
   u.fillStyle = '#e8f4f7';
   if (G.scene === 'out') {
@@ -1165,8 +1165,8 @@ function drawMinimap() {
   u.restore();
   u.lineWidth = 8; u.strokeStyle = '#f3eff7'; ell(u, mx, my, mr, mr); u.stroke();
   u.lineWidth = 4; u.strokeStyle = 'rgba(185,178,208,.8)'; ell(u, mx, my, mr + 7, mr + 7); u.stroke();
-  u.fillStyle = '#f2c14e'; ell(u, 1052, 216, 11, 11); u.fill(); u.lineWidth = 3; u.strokeStyle = '#b9822a'; u.stroke();
-  u.fillStyle = '#fff7d6'; ell(u, 1049, 213, 3, 3); u.fill();
+  u.fillStyle = '#f2c14e'; ell(u, mx + 7, my + 76, 11, 11); u.fill(); u.lineWidth = 3; u.strokeStyle = '#b9822a'; u.stroke();
+  u.fillStyle = '#fff7d6'; ell(u, mx + 4, my + 73, 3, 3); u.fill();
 }
 function drawGaugeChick(x, y, r) {
   u.fillStyle = '#fbf3dc'; ell(u, x, y, r, r * .92); u.fill(); u.lineWidth = 3; u.strokeStyle = '#d99a3a'; u.stroke();
