@@ -863,7 +863,7 @@ function drawHUD() {
   ell(u, 1113, 52, 4, 4); u.fill();
   drawMinimap();
   const keyBtn = (b, ch, on) => { const [x, y, r] = BTN[b]; u.fillStyle = on ? 'rgba(205,200,214,.88)' : 'rgba(132,128,140,.66)'; ell(u, x, y, r - 2, r - 2); u.fill(); u.lineWidth = 5; u.strokeStyle = 'rgba(160,156,170,.55)'; u.stroke(); ptext(ch, x, y + 1, 30, on ? 'rgba(50,46,60,.95)' : 'rgba(62,58,70,.9)', 'center', 900); };
-  keyBtn('up', 'W', K.up || PAD.up); keyBtn('left', 'A', K.left || PAD.left); keyBtn('right', 'S', K.right || PAD.right); keyBtn('down', 'E', K.down || PAD.down);
+  keyBtn('up', 'W', K.up || PAD.up); keyBtn('left', 'A', K.left || PAD.left); keyBtn('right', 'S', K.right || PAD.right); keyBtn('down', 'Z', K.down || PAD.down);
   const [ax, ay] = BTN.act, can = !!G.near && !G.trans;
   if (can) { u.fillStyle = `rgba(242,193,78,${.35 + .25 * Math.sin(G.time * 6)})`; ell(u, ax, ay, 44, 44); u.fill(); }
   u.lineWidth = 7; u.strokeStyle = '#f4f0f8'; ell(u, ax, ay, 30, 30); u.stroke(); ell(u, ax, ay, 16, 16); u.stroke();
@@ -977,7 +977,7 @@ function drawMenu() {
     ptext(typeof m.t === 'function' ? m.t() : m.t, 590, y + 32, 27, i === 0 ? '#5c3a1c' : '#4a3f52', 'center', 700);
     MENU_R.push([x, y, w, h, m]);
   });
-  ptext('이동: WASD·방향키·화면 패드·화면 탭', 590, 840, 20, '#7a6c80', 'center', 700);
+  ptext('이동: W 위 · A 왼쪽 · S 오른쪽 · Z 아래 · 방향키 · 화면 탭', 590, 840, 20, '#7a6c80', 'center', 700);
   ptext('행동: E·스페이스·◎ 버튼', 590, 872, 20, '#7a6c80', 'center', 700);
   uiEnd();
 }
@@ -1066,7 +1066,8 @@ function toggleMute() {
 /* =========================================================
    입력
    ========================================================= */
-const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+// 화면 패드 글자와 똑같이: W 위, A 왼쪽, S 오른쪽, Z 아래 (E·스페이스는 행동)
+const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyZ: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyS: 'right', KeyD: 'right' };
 addEventListener('keydown', e => {
   const k = KEYMAP[e.code];
   if (k) { K[k] = 1; e.preventDefault(); audioInit(); return; }
