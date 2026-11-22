@@ -1017,17 +1017,44 @@ function sfx(n) {
   else if (n === 'ui') tone(880, .06, 'square', .04);
   else if (n === 'bird') { tone(2200, .07, 'sine', .07); tone(2600, .07, 'sine', .07, .09); tone(2400, .07, 'sine', .06, .2); }
 }
-const MEL = [659, 784, 880, 784, 659, 587, 523, 0, 587, 659, 523, 440, 523, 0, 0, 0];
+/* 배경음악: 32마디 오르골 자장가 (4/4, C장조, A-A'-B-A'' 구성) */
+const NOTE = n => { if (n === 'r') return 0; const m = /^([A-G])(#?)(\d)$/.exec(n); const k = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0); return 440 * Math.pow(2, (k + (+m[3] + 1) * 12 - 69) / 12); };
+const MELODY = [
+  'E5 G5 A5 G5', 'E5 D5 C5 r', 'D5 E5 C5 A4', 'G4:2 D5:2', 'E5 G5 A5 C6', 'A5:2 G5 E5', 'D5 E5 G5 E5', 'C5:3 r',
+  'E5 G5 A5 G5', 'E5 D5 C5 E5', 'F5 E5 D5 C5', 'D5:2 G5:2', 'E5 G5 C6 G5', 'A5 G5 E5 C5', 'D5 E5 D5 B4', 'C5:4',
+  'A5:2 G5 F5', 'G5:2 D5:2', 'E5 G5 B5 G5', 'A5:3 r', 'F5 E5 D5 F5', 'G5 F5 E5 D5', 'E5:2 C5:2', 'D5:2 r:2',
+  'E5 G5 A5 G5', 'E5 D5 C5 r', 'A5 G5 F5 A5', 'G5:2 D5 E5', 'C6 A5 G5 E5', 'G5 E5 D5 C5', 'D5:2 E5 D5', 'C5:4'
+];
+const CHORDS = ['C', 'Am', 'F', 'G', 'C', 'Am', 'F', 'C', 'C', 'Am', 'F', 'G', 'C', 'Am', 'F G', 'C',
+  'F', 'G', 'Em', 'Am', 'Dm', 'G', 'C', 'G', 'C', 'Am', 'F', 'G', 'C', 'Am', 'F G', 'C'];
+const CHN = { C: ['C3', 'G3', 'E4'], Am: ['A2', 'E3', 'C4'], F: ['F2', 'C3', 'A3'], G: ['G2', 'D3', 'B3'], Em: ['E2', 'B2', 'G3'], Dm: ['D3', 'A3', 'F4'] };
+const SONG = (() => {
+  const ev = []; let t = 0;
+  MELODY.forEach((bar, b) => {
+    for (const tok of bar.split(' ')) { const [n, d] = tok.split(':'); const dur = d ? +d : 1; if (n !== 'r') ev.push({ t, f: NOTE(n), d: dur, v: .034, h: 1 }); t += dur; }
+    const cs = CHORDS[b].split(' '), span = 4 / cs.length;
+    cs.forEach((c, k) => { const [r, fifth, third] = CHN[c].map(NOTE), t0 = b * 4 + k * span;
+      ev.push({ t: t0, f: r, d: span, v: .03, h: 0 });
+      ev.push({ t: t0 + span / 2, f: fifth, d: span / 2, v: .016, h: 0 }); ev.push({ t: t0 + span / 2, f: third, d: span / 2, v: .012, h: 0 }); });
+  });
+  return ev.sort((a, b) => a.t - b.t);
+})();
+const SONG_BEATS = 128, BEAT = .45;
 function audioTick() {
   const a = AU.ctx; if (!a) return;
   const wind = G.scene === 'out' ? lerp(.16, .05, G.tod) : G.scene === 'room' ? (G.phase === 'night' ? .06 : .015) : .02;
   AU.windGain.gain.setTargetAtTime(G.muted ? 0 : wind, a.currentTime, .4);
   if (G.muted) return;
-  while (AU.next < a.currentTime + .4) {
-    if (AU.next < a.currentTime) AU.next = a.currentTime + .05;
-    const f = MEL[AU.i++ % MEL.length];
-    if (f) { const d = AU.next - a.currentTime, k = G.tod > .5 ? 1 : .5; tone(f * k, .9, 'sine', .03, d); tone(f * 2 * k, .4, 'sine', .01, d); }
-    AU.next += .45;
+  if (!AU.start || AU.start + AU.pos * BEAT < a.currentTime - .5) { AU.start = a.currentTime + .1; AU.pos = 0; AU.i = 0; }
+  const k = G.tod > .5 ? 1 : .5;   // 밤에는 한 옥타브 낮게
+  while (AU.start + AU.pos * BEAT < a.currentTime + .6) {
+    const beatT = AU.pos % SONG_BEATS, loopBase = AU.pos - beatT;
+    while (AU.i < SONG.length && SONG[AU.i].t < beatT + 1) {
+      const e = SONG[AU.i++], when = AU.start + (loopBase + e.t) * BEAT - a.currentTime;
+      if (when > -.05) { tone(e.f * k, Math.max(.5, e.d * BEAT * 1.6), 'sine', e.v, Math.max(0, when)); if (e.h) tone(e.f * 2 * k, .4, 'sine', e.v * .3, Math.max(0, when)); }
+    }
+    AU.pos++;
+    if (AU.pos % SONG_BEATS === 0) AU.i = 0;
   }
 }
 function toggleMute() {
