@@ -81,7 +81,7 @@ function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483
    META: [너비, 높이, 기준점x, 기준점y]  — 기준점은 보통 발 밑
    ========================================================= */
 const META = {"bed_fg":[426,316,4,-627],"teddy":[170,170,81,159],"mk_front_cry":[421,390,202,396],"mk_front_neutral":[421,390,202,396],"mk_front_happy":[421,390,202,396],"mk_front_sleep":[421,390,202,396],"mk_side":[359,395,144,391],"mk_back":[393,422,217,417],"mk_front_cry_day":[421,390,202,396],"mk_front_neutral_day":[421,390,202,396],"mk_front_happy_day":[421,390,202,396],"mk_front_sleep_day":[421,390,202,396],"mk_side_day":[359,395,144,391],"mk_back_day":[393,422,217,417],"teddy_day":[170,170,81,159],"p_rug":[349,91,174,45],"bed_fg_day":[426,316,4,-627]};
-const FILES = ['room_night.jpg', 'room_day.jpg', 'closet_closed.jpg', 'closet_dark.jpg', 'closet_lit.jpg', 'closet_sleep.jpg', 'closet_morning.jpg',]
+const FILES = ['room_night.jpg', 'room_day.jpg', 'closet_closed.jpg', 'closet_dark.jpg', 'closet_lit.jpg', 'closet_sleep.jpg', 'closet_morning.jpg', 'terrace.jpg',]
   .concat(Object.keys(META).map(k => k + '.webp'));
 const IMG = {};
 let loaded = 0, ready = false;
@@ -97,6 +97,28 @@ function spr(g, n, x, y, s, flip) {
   s = s || 1;
   if (flip) { g.save(); g.translate(x, y); g.scale(-1, 1); g.drawImage(im, -m[2] * s, -m[3] * s, m[0] * s, m[1] * s); g.restore(); }
   else g.drawImage(im, x - m[2] * s, y - m[3] * s, m[0] * s, m[1] * s);
+}
+/* 영상 이벤트 장면 (두 번째 영상에서 그대로 잘라 낸 클립) */
+const VID = {};
+function mkVideo(name) {
+  const v = document.createElement('video');
+  v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+  v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+  v.style.cssText = 'position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  const webm = v.canPlayType('video/webm; codecs="vp9"'), mp4 = v.canPlayType('video/mp4; codecs="avc1.640028"');
+  v.src = 'assets/' + name + (mp4 === 'probably' || !webm ? '.mp4' : '.webm'); document.body.appendChild(v); VID[name] = v; return v;
+}
+['clip_vending', 'clip_drink'].forEach(mkVideo);
+function playClip(name, subs, onEnd) {
+  const v = VID[name]; if (!v) { onEnd && onEnd(); return; }
+  G.clip = { name, v, subs: subs || [], onEnd, t: 0, shown: false };
+  try { v.pause(); v.currentTime = 0; } catch (_) { }
+  const p = v.play(); if (p && p.catch) p.catch(() => endClip());
+}
+function endClip() {
+  const c = G.clip; if (!c || c.done) return; c.done = true;
+  try { c.v.pause(); } catch (_) { }
+  G.clipHold = c.name; G.clip = null; c.onEnd && c.onEnd();
 }
 function plate(g, n, a) { const im = IMG[n]; if (!im || !im.naturalWidth) return; if (a !== undefined) g.globalAlpha = a; g.drawImage(im, OX, OY0); g.globalAlpha = 1; }
 
@@ -260,6 +282,25 @@ function startOut(night) {
   setStep('o_snow');
   say(night ? ['밤 공기가 차가워…', '그래도 눈이 예뻐'] : ['공기가 차갑지만', '정말 상쾌해!'], night ? 'neutral' : 'happy', 5);
 }
+const OUT_KEYS = ['outNight', 'tod', 'todTarget', 'snowman', 'acorn', 'bird', 'piles', 'chick', 'step', 'scarf'];
+function startTerrace(fromOut) {
+  if (fromOut && G.scene === 'out') { G.outSave = {}; OUT_KEYS.forEach(k => G.outSave[k] = JSON.parse(JSON.stringify(G[k] === undefined ? null : G[k]))); }
+  else if (!fromOut) G.outSave = null;
+  resetCommon();
+  Object.assign(G, { scene: 'terrace', phase: 'terrace', tod: 1, todTarget: 1, clip: null, clipHold: null, drinks: 0 });
+  G.p.x = 50; G.p.z = 74; G.p.view = 'back'; G.warm = Math.max(G.warm, 60);
+  setStep('t_drink');
+  say(['와, 산 위를 달리는', '기차가 보여!'], 'happy', 4.5);
+}
+function leaveTerrace() {
+  transition('', () => {
+    const sv = G.outSave;
+    startOut(sv ? sv.outNight : false);
+    if (sv) { OUT_KEYS.forEach(k => { if (sv[k] !== null) G[k] = sv[k]; }); }
+    G.p.x = 2620; G.p.z = 30; G.p.face = -1; G.bubble = null;
+    say(['시원한 음료 덕분에', '힘이 난다!'], 'happy', 3.5);
+  }, 1.6);
+}
 function showImg(n, fade) { G.img2 = G.img; G.img = n; G.fadeT = fade ? 0 : 1; G.fadeDur = fade || 1; }
 
 const STEPS = {
@@ -282,6 +323,11 @@ const STEPS = {
   o_bird: { b: () => G.outNight ? '눈 내리는 밤 산책' : '눈 오는 날 산책', s: '울타리 위 아기새에게 도토리를 주자' },
   o_fire: { b: () => G.outNight ? '모닥불 산책' : '노을 산책', s: '모닥불 앞에서 몸을 녹이자' },
   o_home: { b: '집으로', s: '어두워졌어. 집으로 돌아가자' },
+  t_drink: { b: '전망 테라스', s: '자판기에서 시원한 음료를 뽑아 보자' },
+  t_sit: { b: '전망 테라스', s: '탁자에 앉아서 음료를 마셔 보자' },
+  t_clip: { b: '전망 테라스', s: () => clipSub() },
+  t_view: { b: '전망 테라스', s: '바람이 시원해… 기차 구경 중' },
+  t_free: { b: '전망 테라스', s: '아래로 내려가면 산책길로 돌아가요' },
 };
 function setStep(s) { G.step = s; G.stepT = 0; }
 function stepText(k) { const st = STEPS[G.step]; if (!st) return ''; const v = st[k]; return typeof v === 'function' ? v() : v; }
@@ -362,10 +408,40 @@ function outActs() {
     say(['아기새가 좋아해!', '같이 걸어갈래?'], 'happy', 4); if (!G.outNight) G.todTarget = .5;
   }, 250, 100);
   if (s === 'o_fire' && !G.sitFire) mkA('fire', 2600, 40, '모닥불 쬐기', () => { G.sitFire = true; G.target = null; sfx('ok'); }, 200, 130);
+  if (!c || c === 'acorn') mkA('terrace', 2745, 22, '전망 테라스로 가기', () => transition('전망 테라스', () => startTerrace(true), 1.8), 220, 110);
   mkA('door', 335, 6, '집으로 들어가기', () => {
     if (G.step === 'o_home') transition('그날 밤…', () => { G.carry = null; startNight(false); }, 2.2);
     else transition('', () => { G.carry = null; G.outNight ? startNight(false) : returnHomeDay(); }, 1.6);
   }, 220, 90);
+  return A;
+}
+// 테라스 바닥: z 0(안쪽, 탁자 근처) ~ 100(앞쪽), x 0~100 은 좁은 길의 왼쪽~오른쪽
+const TY = z => 730 + z * 3.8, THW = z => lerp(38, 140, z / 100), TX = (x, z) => 345 + (x - 50) / 50 * THW(z), TS = z => .42 + z * .0058;
+const T_VEND = { x: 12, z: 52, r: 16, hit: [40, 560, 260, 470], mk: [255, 560] };
+const T_TABLE = { x: 62, z: 16, r: 14, hit: [370, 560, 200, 270], mk: [470, 590] };
+const T_EXIT = { x: 50, z: 98, r: 9, hit: [180, 1060, 330, 77], mk: [345, 1000] };
+function clipSub() { const c = G.clip; if (!c) return ''; const t = c.v.currentTime; let s = ''; for (const [t0, txt] of c.subs) if (t >= t0) s = txt; return s; }
+function terraceActs() {
+  const A = [], c = G.carry, s = G.step;
+  if ((s === 't_drink' || s === 't_free') && !c) A.push({ ...T_VEND, id: 'vend', label: s === 't_free' ? '한 캔 더 뽑기' : '음료 뽑기', fn: () => {
+    G.target = null;
+    transition('', () => playClip('clip_vending', [[0, '시원한 음료 하나 주세요!'], [.9, '짠! 시원한 음료 나왔다']], () => {
+      G.clipHold = null; G.carry = 'can'; setStep('t_sit'); G.p.view = 'front'; face('happy', 2);
+      say(['차가워서', '기분이 좋아!'], 'happy', 3.5);
+    }), .7);
+    setStep('t_clip');
+  } });
+  if (s === 't_sit' && c === 'can') A.push({ ...T_TABLE, id: 'table', label: '탁자에 앉아 마시기', fn: () => {
+    G.target = null; setStep('t_clip');
+    transition('', () => playClip('clip_drink', [[0, '영차, 탁자 위로 올라가자'], [1.1, '꿀꺽꿀꺽… 시원하다!'], [4.4, '저기 기차가 지나간다!']], () => {
+      G.carry = null; G.drinks++; G.warm = 100; G.hp = 100; setStep('t_view'); sfx('ok');
+      say(['기차야, 안녕~', '여기 경치 최고야!'], 'happy', 4.5);
+    }), .7);
+  } });
+  if (s === 't_view') A.push({ x: 0, z: 0, r: 1e9, id: 'stand', label: '일어나기', hit: [33, 24, 1114, 1113], mk: [700, 520], fn: () => {
+    transition('', () => { G.clipHold = null; G.p.x = 66; G.p.z = 22; G.p.view = 'front'; setStep('t_free'); }, 1.0);
+  } });
+  if (s !== 't_clip' && s !== 't_view') A.push({ ...T_EXIT, id: 'exit', label: '산책길로 돌아가기', fn: leaveTerrace });
   return A;
 }
 function closetActs() {
@@ -389,7 +465,7 @@ function update(dt) {
   if (G.bubble) { G.bubble.t -= dt; if (G.bubble.t <= 0) G.bubble = null; }
   if (G.exprOv) { G.exprOv.t -= dt; if (G.exprOv.t <= 0) G.exprOv = null; }
   G.stepT += dt;
-  const locked = !!G.trans || G.sitFire || G.scene === 'closet';
+  const locked = !!G.trans || G.sitFire || G.scene === 'closet' || !!G.clip || G.step === 't_view' || G.step === 't_clip';
 
   // 이동
   const p = G.p;
@@ -411,6 +487,9 @@ function update(dt) {
       const nx = p.x + vx * sp * dt, nz = p.z + vz * sp * .85 * dt;
       if (!roomBlocked(nx, p.z)) p.x = nx;
       if (!roomBlocked(p.x, nz)) p.z = nz;
+    } else if (G.scene === 'terrace') {
+      p.x = clamp(p.x + vx * 60 * dt, 0, 100);
+      p.z = clamp(p.z + vz * 30 * dt, 0, 100);
     } else {
       p.x = clamp(p.x + vx * 290 * dt, 140, WW - 90);
       p.z = clamp(p.z + vz * 42 * dt, 0, 100);
@@ -439,6 +518,7 @@ function update(dt) {
   // 체온/체력
   let dw = 0;
   if (G.scene === 'room') dw = G.phase === 'night' ? -.3 : (G.warm < 75 ? 2 : 0);
+  else if (G.scene === 'terrace') dw = G.warm < 85 ? 3 : 0;
   else if (G.scene === 'closet') dw = G.img === 'closet_lit' || G.img === 'closet_sleep' ? 22 : (G.phase === 'closetMorning' ? 2 : -.2);
   else {
     const sun = sstep(.45, .9, G.tod);
@@ -475,8 +555,14 @@ function update(dt) {
     }
   }
 
+  if (G.clip) {
+    const c = G.clip, v = c.v; c.t += dt;
+    if (v.ended || (v.duration && v.currentTime >= v.duration - .04)) endClip();
+    else if (c.t > 3 && v.currentTime < .05) endClip();          // 재생이 막히면 건너뜀
+    else if (c.t > (v.duration || 12) + 3) endClip();
+  }
   // 상호작용 찾기
-  G.acts = G.trans || (locked && G.scene !== 'closet') ? [] : (G.scene === 'room' ? roomActs() : G.scene === 'out' ? outActs() : closetActs());
+  G.acts = G.trans || (locked && G.scene !== 'closet' && G.step !== 't_view') ? [] : (G.scene === 'room' ? roomActs() : G.scene === 'out' ? outActs() : G.scene === 'terrace' ? terraceActs() : closetActs());
   let best = null, bd = 1e9;
   for (const a of G.acts) {
     const d = G.scene === 'out' ? Math.hypot(a.x - p.x, (a.z - p.z) * 5) : Math.hypot(a.x - p.x, (a.z - p.z) * .8);
@@ -506,12 +592,23 @@ function curExpr() {
   if (G.sleep) return 'sleep';
   return G.warm < 30 ? 'cry' : G.warm < 55 ? 'neutral' : 'happy';
 }
+function drawCan(g, x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  const gr = g.createLinearGradient(-15, 0, 15, 0); gr.addColorStop(0, '#1c5fb8'); gr.addColorStop(.45, '#5aa8ee'); gr.addColorStop(1, '#174a96');
+  rr(g, -15, -26, 30, 52, 6); g.fillStyle = gr; g.fill();
+  g.fillStyle = '#f4f7fb'; g.fillRect(-15, -10, 30, 17);
+  g.fillStyle = '#1c5fb8'; g.font = `900 9px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RANNA', 0, -2);
+  const sg = g.createLinearGradient(-15, 0, 15, 0); sg.addColorStop(0, '#9aa3ad'); sg.addColorStop(.5, '#eef2f6'); sg.addColorStop(1, '#8a939d');
+  g.fillStyle = sg; ell(g, 0, -26, 15, 4); g.fill();
+  g.restore();
+}
 function heldFn(k, day) {
   if (!k || k === 'stack') return null;
   return (g, x, y, s) => {
     if (k === 'teddy') spr(g, day ? 'teddy_day' : 'teddy', x, y + 75 * s, .85 * s);
     else if (k === 'snowball') drawSnowball(g, x, y - 10 * s, 46 * s);
     else if (k === 'acorn') drawAcorn(g, x, y, 1.6 * s);
+    else if (k === 'can') drawCan(g, x, y - 8 * s, 1.5 * s);
   };
 }
 function mkOpts(day, extra) {
@@ -525,6 +622,7 @@ function render() {
   if (!ready) { drawLoading(); return; }
   if (G.scene === 'room') drawRoomScene();
   else if (G.scene === 'closet') drawClosetScene();
+  else if (G.scene === 'terrace') drawTerraceScene();
   else drawOutScene();
   drawWorldPrompt();
   drawHUD();
@@ -690,6 +788,7 @@ function drawOutScene() {
   list.push({ z: -9, d: c => drawBigTree(c, 1760 - cam) });
   list.push({ z: -8, d: c => drawFence(c, 1950 - cam) });
   for (const lx of [720, 1900, 2850]) list.push({ z: -7, d: c => drawLampPost(c, lx - cam, night) });
+  list.push({ z: -6, d: c => drawSignpost(c, 2745 - cam, night) });
   G.piles.forEach(pl => { if (!pl.taken) list.push({ z: pl.z, d: c => drawPile(c, pl.x - cam, OY(pl.z), OS(pl.z)) }); });
   list.push({ z: 26, d: c => drawSnowman(c, 1080 - cam, OY(26), OS(26)) });
   list.push({ z: 40, d: c => drawFire(c, 2600 - cam, OY(40), OS(40)) });
@@ -811,6 +910,40 @@ function drawFire(g, x, y, s) {
   g.restore();
 }
 
+/* ---------- 전망 테라스 (두 번째 영상) ---------- */
+function drawTerraceScene() {
+  const g = ctx, c = G.clip;
+  const vname = c ? c.name : G.clipHold;
+  if (vname) {
+    const v = VID[vname];
+    if (v && v.readyState >= 2) { g.drawImage(v, OX, OY0, CW, CH); if (c) c.shown = true; }
+    else { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+    return;
+  }
+  plate(g, 'terrace');
+  // 햇살 속 먼지
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 22; i++) { const f = SNOW[i + 60], x = 500 + (f.x % 640) + Math.sin(G.time * .3 + f.w) * 20, y = 120 + ((f.y + G.time * 6) % 700); g.fillStyle = `rgba(255,220,150,${.18 + .15 * Math.sin(G.time + f.w)})`; ell(g, x, y, 2, 2); g.fill(); }
+  g.restore();
+  const p = G.p;
+  dB.clearRect(0, 0, W, H);
+  drawMk(dB, TX(p.x, p.z), TY(p.z), TS(p.z), mkOpts(true));
+  tint(dB, .2, '#ffa24a');                       // 노을빛
+  g.drawImage(dynB, 0, 0);
+  // 앞쪽 화분 잎이 살짝 가리도록
+  if (p.z > 80) { const im = IMG.terrace; if (im && im.naturalWidth) { g.save(); g.beginPath(); g.ellipse(130, 1065, 95, 55, 0, 0, Math.PI * 2); g.clip(); g.globalAlpha = .9; g.drawImage(im, OX, OY0); g.restore(); } }
+}
+/* ---------- 산책길 끝 표지판 ---------- */
+function drawSignpost(g, x, night) {
+  if (x < -150 || x > W + 150) return;
+  const wood = mixc('#4a3a32', '#9a6a46', sstep(.3, .9, G.tod));
+  g.fillStyle = 'rgba(0,0,0,.18)'; ell(g, x, 800, 40, 8); g.fill();
+  g.fillStyle = wood; g.fillRect(x - 7, 620, 14, 180);
+  g.beginPath(); g.moveTo(x - 90, 620); g.lineTo(x + 70, 620); g.lineTo(x + 100, 650); g.lineTo(x + 70, 680); g.lineTo(x - 90, 680); g.closePath(); g.fill();
+  g.fillStyle = '#f6f9ff'; rr(g, x - 95, 612, 170, 12, 6); g.fill();
+  g.fillStyle = night > .5 ? '#f3e7d0' : '#fff6e6'; g.font = `900 22px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('전망 테라스 →', x + 2, 651);
+}
 /* ---------- 상호작용 표시 ---------- */
 function actScreen(a) { return a.world ? [OX + a.mk[0] - G.cam, a.mk[1]] : a.mk; }
 function drawWorldPrompt() {
@@ -960,25 +1093,26 @@ const MENU = [
   { t: '아침의 방 (낮)', f: () => { G.warm = 80; G.hp = 100; startDay(true); } },
   { t: '바깥 산책 · 낮', f: () => { G.scarf = true; G.warm = 80; startOut(false); } },
   { t: '바깥 산책 · 눈 내리는 밤', f: () => { G.scarf = true; G.warm = 80; startOut(true); } },
+  { t: '전망 테라스', f: () => { G.warm = 80; startTerrace(false); } },
   { t: () => G.muted ? '소리 켜기' : '소리 끄기', f: () => toggleMute(), keep: true }
 ];
 let MENU_R = [];
 function drawMenu() {
   ctx.fillStyle = 'rgba(6,8,18,.6)'; ctx.fillRect(0, 0, W, H);
   uiBegin();
-  rr(u, 300, 212, 580, 720, 56); u.fillStyle = 'rgba(195,180,215,.7)'; u.fill();
-  rr(u, 310, 222, 560, 700, 48); u.fillStyle = '#fbf3ec'; u.fill(); u.lineWidth = 7; u.strokeStyle = '#fff'; u.stroke();
-  pill(u, 400, 250, 380, 56, '#f6dbc9', '#fff4ec', 6);
-  ptext('설정', 590, 278, 30, '#8a5a3f', 'center', 900);
+  rr(u, 300, 176, 580, 800, 56); u.fillStyle = 'rgba(195,180,215,.7)'; u.fill();
+  rr(u, 310, 186, 560, 780, 48); u.fillStyle = '#fbf3ec'; u.fill(); u.lineWidth = 7; u.strokeStyle = '#fff'; u.stroke();
+  pill(u, 400, 210, 380, 56, '#f6dbc9', '#fff4ec', 6);
+  ptext('설정', 590, 238, 30, '#8a5a3f', 'center', 900);
   MENU_R = [];
   MENU.forEach((m, i) => {
-    const y = 336 + i * 80, x = 350, w = 480, h = 62;
+    const y = 292 + i * 76, x = 350, w = 480, h = 60;
     pill(u, x, y, w, h, i === 0 ? '#f2c14e' : '#efe6ef', '#ffffff', 5);
-    ptext(typeof m.t === 'function' ? m.t() : m.t, 590, y + 32, 27, i === 0 ? '#5c3a1c' : '#4a3f52', 'center', 700);
+    ptext(typeof m.t === 'function' ? m.t() : m.t, 590, y + 31, 27, i === 0 ? '#5c3a1c' : '#4a3f52', 'center', 700);
     MENU_R.push([x, y, w, h, m]);
   });
-  ptext('이동: W 위 · A 왼쪽 · S 오른쪽 · Z 아래 · 방향키 · 화면 탭', 590, 840, 20, '#7a6c80', 'center', 700);
-  ptext('행동: E·스페이스·◎ 버튼', 590, 872, 20, '#7a6c80', 'center', 700);
+  ptext('이동: W 위 · A 왼쪽 · S 오른쪽 · Z 아래 · 방향키 · 화면 탭', 590, 880, 20, '#7a6c80', 'center', 700);
+  ptext('행동: E·스페이스·◎ 버튼', 590, 912, 20, '#7a6c80', 'center', 700);
   uiEnd();
 }
 
@@ -1042,7 +1176,7 @@ const SONG = (() => {
 const SONG_BEATS = 128, BEAT = .45;
 function audioTick() {
   const a = AU.ctx; if (!a) return;
-  const wind = G.scene === 'out' ? lerp(.16, .05, G.tod) : G.scene === 'room' ? (G.phase === 'night' ? .06 : .015) : .02;
+  const wind = G.scene === 'terrace' ? .03 : G.scene === 'out' ? lerp(.16, .05, G.tod) : G.scene === 'room' ? (G.phase === 'night' ? .06 : .015) : .02;
   AU.windGain.gain.setTargetAtTime(G.muted ? 0 : wind, a.currentTime, .4);
   if (G.muted) return;
   if (!AU.start || AU.start + AU.pos * BEAT < a.currentTime - .5) { AU.start = a.currentTime + .1; AU.pos = 0; AU.i = 0; }
@@ -1103,6 +1237,9 @@ cv.addEventListener('pointerdown', e => {
   }
   if (G.scene === 'room') {
     const z = clamp((y - 735) / 3.3, 0, 100), s = RS(z), xx = clamp(50 + (x - 590) / (11 * s), 0, 100);
+    G.target = { x: xx, z }; G.pend = null;
+  } else if (G.scene === 'terrace' && !G.clip) {
+    const z = clamp((y - 730) / 3.8, 0, 100), xx = clamp(50 + (x - 345) / THW(z) * 50, 0, 100);
     G.target = { x: xx, z }; G.pend = null;
   } else if (G.scene === 'out' && !G.sitFire) {
     G.target = { x: clamp(x - OX + (G.cam || 0), 140, WW - 90), z: clamp((y - 790) / 2.7, 0, 100) }; G.pend = null;
